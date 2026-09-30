@@ -32,6 +32,12 @@ if [ "${1:-}" = "upgrade" ]; then
   exit
 fi
 
+# OpenCode's --version only knows its own number; report both.
+if [ $# -eq 1 ] && { [ "$1" = "--version" ] || [ "$1" = "-v" ]; }; then
+  echo "AmaliCode ${AMALICODE_VERSION:-(local)} (OpenCode $OPENCODE_VERSION)"
+  exit
+fi
+
 # Passed by environment rather than written to OpenCode's config files, so a
 # user's own opencode.json and tui.json keep working and nothing needs root.
 # The plugin itself enforces the provider lock from inside the config hook.
