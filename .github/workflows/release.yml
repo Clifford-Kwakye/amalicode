@@ -1,0 +1,45 @@
+name: release
+
+# Push a tag like v0.1.0 to publish. Users then install with:
+#   curl -fsSL https://github.com/Clifford-Kwakye/amalicode/releases/latest/download/install.sh | bash
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Test plugin
+        working-directory: plugin
+        run: |
+          bun install --frozen-lockfile
+          bun test
+          bunx tsc -p .
+
+      - name: Build release assets
+        run: |
+          base="https://github.com/${{ github.repository }}/releases"
+          script/release.sh "${GITHUB_REF_NAME#v}" "$base/download/$GITHUB_REF_NAME" "$base/latest/download"
+
+      - name: Smoke-test the stamped installer
+        run: |
+          # Installs from the built bundle (no network for AmaliCode files), then
+          # checks the launcher runs the pinned OpenCode it downloaded.
+          mkdir -p /tmp/bundle && tar -xzf dist/amalicode-bundle.tar.gz -C /tmp/bundle
+          AMALICODE_HOME=/tmp/amalicode bash /tmp/bundle/install.sh --bundle /tmp/bundle
+          AMALICODE_HOME=/tmp/amalicode /tmp/amalicode/bin/amalicode --version
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "AmaliCode $GITHUB_REF_NAME" --generate-notes

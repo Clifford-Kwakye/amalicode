@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# AmaliCode launcher: runs the pinned, unmodified OpenCode release with the
+# AmaliAI plugin loaded. Installed by install.sh; settings live beside it.
+set -euo pipefail
+
+home="${AMALICODE_HOME:-$HOME/.amalicode}"
+settings="$home/settings"
+if [ ! -f "$settings" ]; then
+  echo "amalicode: not installed correctly ($settings is missing). Re-run the installer." >&2
+  exit 1
+fi
+# Provides AMALICODE_VERSION, OPENCODE_VERSION, BASE_URL, CHANNEL and INSTALLER_URL.
+# shellcheck source=/dev/null
+. "$settings"
+
+bin="$home/opencode/$OPENCODE_VERSION/opencode"
+if [ ! -x "$bin" ]; then
+  echo "amalicode: OpenCode $OPENCODE_VERSION is missing from $home/opencode. Re-run the installer." >&2
+  exit 1
+fi
+
+# OpenCode's own upgrade would replace the binary behind the pinned version;
+# upgrades go through the installer, which only moves to evaluated releases.
+if [ "${1:-}" = "upgrade" ]; then
+  shift
+  if [ -z "$INSTALLER_URL" ]; then
+    echo "amalicode: this install has no installer URL to upgrade from. Re-run install.sh from a new AmaliCode bundle." >&2
+    exit 1
+  fi
+  # Keep the installed channel unless the user passes another --channel.
+  curl -fsSL "$INSTALLER_URL" | bash -s -- --channel "${CHANNEL:-prod}" "$@"
+  exit
+fi
+
+# Passed by environment rather than written to OpenCode's config files, so a
+# user's own opencode.json and tui.json keep working and nothing needs root.
+# The plugin itself enforces the provider lock from inside the config hook.
+export OPENCODE_CONFIG_CONTENT="{\"plugin\":[[\"file://$home/plugin\",{\"baseURL\":\"$BASE_URL\"}]]}"
+export OPENCODE_TUI_CONFIG="$home/tui.json"
+# models.dev describes providers AmaliCode never offers.
+export OPENCODE_DISABLE_MODELS_FETCH=true
+
+# Offline presence check only. Verifying the key here hung startup against the
+# VPN-gated gateway, so an invalid key surfaces later as an empty model list.
+has_key() {
+  [ -n "$(printf '%s' "${AMALICODE_API_KEY:-}" | tr -d '[:space:]')" ] && return 0
+  local auth="${XDG_DATA_HOME:-$HOME/.local/share}/opencode/auth.json"
+  [ -f "$auth" ] && grep -q '"amaliai"' "$auth"
+}
+
+# Only gate launches of the interactive TUI: no arguments, or a directory.
+if { [ $# -eq 0 ] || [ -d "${1:-}" ]; } && ! has_key; then
+  echo "AmaliCode needs an AmaliAI key. Create one on the AmaliAI dashboard, then paste it below."
+  "$bin" auth login --provider amaliai
+  has_key || exit 1
+fi
+
+exec "$bin" "$@"
