@@ -23,7 +23,14 @@ Add `-s -- --channel dev` after `bash` for the dev gateway. From a checkout, `./
 
 ## Releasing
 
-Push a tag: `git tag v0.1.0 && git push origin v0.1.0`. `.github/workflows/release.yml` tests the plugin, runs `script/release.sh` to stamp `install.sh` with that release's URLs and pack `amalicode-bundle.tar.gz`, smoke-tests the installer, and publishes both with `SHA256SUMS`.
+The install one-liner downloads from the latest GitHub release, so it returns 404 until at least one release exists. To publish one, tag `main` and push the tag:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Use the next version for each later release. `.github/workflows/release.yml` tests the plugin, runs `script/release.sh` to stamp `install.sh` with that release's URLs and pack `amalicode-bundle.tar.gz`, smoke-tests the installer, and publishes both with `SHA256SUMS`.
 
 To take a new upstream OpenCode release: install it with `./install.sh --version <new>`, run the evaluation set, then change `OPENCODE_VERSION` in `install.sh` and tag a release. The contract with upstream is the plugin API (`@opencode-ai/plugin`), the `config`/`auth` hooks, the `home_logo` slot, and the `OPENCODE_CONFIG_CONTENT` / `OPENCODE_TUI_CONFIG` variables.
 
