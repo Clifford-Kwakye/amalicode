@@ -124,11 +124,19 @@ install_opencode() {
   echo "Downloading OpenCode $version ($platform)"
   local progress="-sS"
   if [ -t 2 ]; then progress="--progress-bar"; fi
-  curl -fL "$progress" -o "$tmp/archive$ext" "$url" || {
-    rm -rf "$tmp"
-    echo "Download failed: $url" >&2
-    exit 1
-  }
+  # The archive is ~60 MB and slow VPN/WSL links reset it partway, so resume
+  # rather than restart. A shell loop, because curl's --retry-all-errors needs 7.71+.
+  local attempt=1 attempts=5
+  until curl -fL "$progress" -C - -o "$tmp/archive$ext" "$url"; do
+    if [ "$attempt" -ge "$attempts" ]; then
+      rm -rf "$tmp"
+      echo "Download failed after $attempts attempts: $url" >&2
+      exit 1
+    fi
+    attempt=$((attempt + 1))
+    echo "Download interrupted, resuming (attempt $attempt of $attempts)" >&2
+    sleep 2
+  done
   if [ "$ext" = ".tar.gz" ]; then tar -xzf "$tmp/archive$ext" -C "$tmp"; fi
   if [ "$ext" = ".zip" ]; then unzip -q "$tmp/archive$ext" -d "$tmp"; fi
   mkdir -p "$dest"
