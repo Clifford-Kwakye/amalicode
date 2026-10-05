@@ -78,7 +78,7 @@ describe("loadCatalog", () => {
   })
 
   test("throws on a rejected key so the empty list is explained", async () => {
-    expect(loadCatalog(base("litellm"), "sk-bad")).rejects.toThrow("401")
+    await expect(loadCatalog(base("litellm"), "sk-bad")).rejects.toThrow("401")
   })
 })
 
