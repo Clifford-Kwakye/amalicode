@@ -72,6 +72,10 @@ export async function catalogFor(baseURL: string, key: string | undefined, dir =
     await Bun.write(file, JSON.stringify(catalog))
     return catalog
   })
+  // Both branches below handle a failed refresh, but only after reading the
+  // cache. A gateway that fails faster than that read would otherwise surface
+  // as an unhandled rejection first (reliably so on Windows).
+  refresh.catch(() => {})
   const cached = (await file.exists()) ? ((await file.json().catch(() => undefined)) as Catalog | undefined) : undefined
   if (cached) {
     refresh.catch((error) => log(`refresh failed, using cached models: ${error.message}`))
