@@ -43,6 +43,13 @@ cd ~/projects/my-app
 amalicode
 ```
 
+On Windows, the same in PowerShell, Command Prompt or Windows Terminal:
+
+```powershell
+cd $HOME\projects\my-app
+amalicode
+```
+
 The first launch asks for your AmaliAI key. Create one on the AmaliAI dashboard and paste it in. It is saved in `~/.local/share/opencode/auth.json` (on Windows, `%USERPROFILE%\.local\share\opencode\auth.json`), so you are only asked once. To use a key without saving it, set `AMALICODE_API_KEY` instead.
 
 | Command | What it does |
