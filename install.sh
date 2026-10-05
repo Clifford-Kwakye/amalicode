@@ -84,7 +84,7 @@ target() {
   case "$(uname -s)" in
     Darwin*) os="darwin" ;;
     Linux*) os="linux" ;;
-    *) echo "Unsupported OS: $(uname -s). On Windows, install inside WSL." >&2; exit 1 ;;
+    *) echo "Unsupported OS: $(uname -s). On Windows, use install.ps1 from PowerShell instead." >&2; exit 1 ;;
   esac
   case "$(uname -m)" in
     x86_64|amd64) arch="x64" ;;

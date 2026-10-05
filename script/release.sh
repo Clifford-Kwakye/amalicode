@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Builds the two release assets into dist/:
-#   install.sh               the installer, stamped with this release's URLs
-#   amalicode-bundle.tar.gz  plugin, launcher and the same stamped installer
+# Builds the release assets into dist/:
+#   install.sh               the Linux/macOS installer, stamped with this release's URLs
+#   install.ps1              the Windows installer, stamped the same way
+#   amalicode-bundle.tar.gz  plugin, both launchers and both stamped installers
 #
 #   script/release.sh <version> <download-base> <latest-base>
 #
@@ -20,23 +21,28 @@ dist="$root/dist"
 rm -rf "$dist"
 mkdir -p "$dist/bundle/plugin" "$dist/bundle/launcher"
 
-sed \
-  -e "s|__AMALICODE_VERSION__|$version|" \
-  -e "s|__BUNDLE_URL__|$download_base/amalicode-bundle.tar.gz|" \
-  -e "s|__LATEST_INSTALLER_URL__|$latest_base/install.sh|" \
-  "$root/install.sh" >"$dist/install.sh"
-if grep -q "__[A-Z_]*__" "$dist/install.sh"; then
-  echo "install.sh still has unstamped placeholders" >&2
-  exit 1
-fi
+stamp() {
+  sed \
+    -e "s|__AMALICODE_VERSION__|$version|" \
+    -e "s|__BUNDLE_URL__|$download_base/amalicode-bundle.tar.gz|" \
+    -e "s|__LATEST_INSTALLER_URL__|$latest_base/install.sh|" \
+    -e "s|__LATEST_INSTALLER_PS1_URL__|$latest_base/install.ps1|" \
+    "$root/$1" >"$dist/$1"
+  if grep -q "__[A-Z0-9_]*__" "$dist/$1"; then
+    echo "$1 still has unstamped placeholders" >&2
+    exit 1
+  fi
+}
+stamp install.sh
+stamp install.ps1
 chmod 755 "$dist/install.sh"
 
-cp "$dist/install.sh" "$dist/bundle/install.sh"
-cp "$root/launcher/amalicode" "$dist/bundle/launcher/"
+cp "$dist/install.sh" "$dist/install.ps1" "$dist/bundle/"
+cp "$root/launcher/amalicode" "$root/launcher/amalicode.cmd" "$dist/bundle/launcher/"
 cp -R "$root/plugin/src" "$root/plugin/themes" "$root/plugin/package.json" "$dist/bundle/plugin/"
 cp "$root/README.md" "$root/NOTICE" "$dist/bundle/"
 
 tar -czf "$dist/amalicode-bundle.tar.gz" -C "$dist/bundle" .
 rm -rf "$dist/bundle"
-(cd "$dist" && sha256sum install.sh amalicode-bundle.tar.gz >SHA256SUMS)
+(cd "$dist" && sha256sum install.sh install.ps1 amalicode-bundle.tar.gz >SHA256SUMS)
 ls -l "$dist"

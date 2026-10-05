@@ -2,6 +2,7 @@ name: release
 
 # Push a tag like v0.1.0 to publish. Users then install with:
 #   curl -fsSL https://github.com/Clifford-Kwakye/amalicode/releases/latest/download/install.sh | bash
+#   irm https://github.com/Clifford-Kwakye/amalicode/releases/latest/download/install.ps1 | iex   (Windows)
 on:
   push:
     tags: ["v*"]
@@ -10,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,7 +40,47 @@ jobs:
           AMALICODE_HOME=/tmp/amalicode bash /tmp/bundle/install.sh --bundle /tmp/bundle
           AMALICODE_HOME=/tmp/amalicode /tmp/amalicode/bin/amalicode --version
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  windows:
+    needs: build
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Smoke-test the stamped Windows installer
+        run: |
+          # The same assets users download: unpack the bundle with Windows' own
+          # tar, install from it, and check both version numbers.
+          New-Item -ItemType Directory bundle | Out-Null
+          tar.exe -xzf dist\amalicode-bundle.tar.gz -C bundle
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          .\bundle\install.ps1 -Bundle "$PWD\bundle"
+          $pin = (Select-String -Path dist\install.ps1 -Pattern '^\$OpenCodeVersion = "(.+)"').Matches[0].Groups[1].Value
+          $expected = "AmaliCode $($env:GITHUB_REF_NAME.TrimStart('v')) (OpenCode $pin)"
+          $out = & "$env:USERPROFILE\.amalicode\bin\amalicode.cmd" --version
+          "got: $out, expected: $expected"
+          if ($out -ne $expected) { exit 1 }
+
+  publish:
+    needs: [build, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* --title "AmaliCode $GITHUB_REF_NAME" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "${{ github.repository }}" --title "AmaliCode $GITHUB_REF_NAME" --generate-notes

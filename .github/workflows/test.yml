@@ -24,3 +24,42 @@ jobs:
           bash -n install.sh
           bash -n launcher/amalicode
           bash -n script/release.sh
+      - name: Installers pin the same OpenCode
+        run: |
+          sh_pin=$(grep -oP '^OPENCODE_VERSION="\K[0-9][^"]*' install.sh)
+          ps_pin=$(grep -oP '^\$OpenCodeVersion = "\K[^"]+' install.ps1)
+          echo "install.sh: $sh_pin, install.ps1: $ps_pin"
+          test -n "$sh_pin" && test "$sh_pin" = "$ps_pin"
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        # Windows PowerShell 5.1, which is what users have, not pwsh.
+        shell: powershell
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Plugin
+        working-directory: plugin
+        run: |
+          bun install --frozen-lockfile
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          bun test
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Install from checkout
+        run: .\install.ps1 -Channel dev
+      - name: Launcher
+        run: |
+          $out = & "$env:USERPROFILE\.amalicode\bin\amalicode.cmd" --version
+          $out
+          if ($out -notmatch '^AmaliCode \(local\) \(OpenCode [0-9.]+\)$') { exit 1 }
+          # The installer adds bin to the user PATH in the registry.
+          $path = (Get-Item "HKCU:\Environment").GetValue("Path", "", "DoNotExpandEnvironmentNames")
+          if (($path -split ";") -notcontains "$env:USERPROFILE\.amalicode\bin") { "bin not on user PATH"; exit 1 }
+          # Re-running must not add a second entry.
+          .\install.ps1 -Channel dev
+          $path = (Get-Item "HKCU:\Environment").GetValue("Path", "", "DoNotExpandEnvironmentNames")
+          if (@($path -split ";" | Where-Object { $_ -eq "$env:USERPROFILE\.amalicode\bin" }).Count -ne 1) { "duplicate PATH entry"; exit 1 }
