@@ -116,6 +116,8 @@ To take a new upstream OpenCode release: install it with `./install.sh --version
 
 ## Develop
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup on Windows, Linux and macOS, the contribution workflow, and how releases work. Quick start:
+
 ```bash
 cd plugin
 bun install
